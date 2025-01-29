@@ -1,0 +1,140 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { FileText, Download, Share2, ChevronDown, ChevronUp } from 'lucide-react';
+import { sampleReport } from '@/lib/sample-report';
+
+export function ReportView() {
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0]));
+  const [sections, setSections] = useState<{ title: string; content: string }[]>([]);
+  const [selectedSection, setSelectedSection] = useState<number>(0);
+  
+  useEffect(() => {
+    // Split the report into sections based on h1 headers (# in markdown)
+    const splitSections = sampleReport.split(/(?=^# )/m).filter(Boolean);
+    const processedSections = splitSections.map(section => {
+      const lines = section.split('\n');
+      const title = lines[0].replace(/^#\s+/, '');
+      return {
+        title,
+        content: section
+      };
+    });
+    setSections(processedSections);
+  }, []);
+
+  const toggleSection = (index: number) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const scrollToSection = (index: number) => {
+    setSelectedSection(index);
+    setExpandedSections(prev => new Set([...prev, index]));
+    const element = document.getElementById(`section-${index}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="flex-1 glass-panel overflow-hidden flex flex-col">
+      {/* Report Header */}
+      <div className="p-4 border-b border-neutral-700/50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-neutral-800/50 rounded-lg">
+            <FileText className="w-5 h-5 text-green-500" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">G2 Enterprise Reviews Analysis</h2>
+            <p className="text-sm text-neutral-400">June 2024 Report</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Section Navigation Dropdown */}
+          <select
+            className="px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-200 focus:outline-none focus:border-green-500"
+            value={selectedSection}
+            onChange={(e) => scrollToSection(Number(e.target.value))}
+          >
+            {sections.map((section, index) => (
+              <option key={index} value={index}>
+                {section.title}
+              </option>
+            ))}
+          </select>
+
+          <div className="h-6 w-px bg-neutral-700/50" />
+
+          <div className="flex items-center gap-2">
+            <button className="btn btn-secondary h-8 text-sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </button>
+            <button className="btn btn-secondary h-8 text-sm">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Report Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto p-8 space-y-6">
+          {sections.map((section, index) => (
+            <div
+              key={index}
+              id={`section-${index}`}
+              className="glass-panel"
+            >
+              {/* Section Header */}
+              <button
+                onClick={() => toggleSection(index)}
+                className="w-full p-4 flex items-center justify-between text-left border-b border-neutral-700/50 hover:bg-neutral-800/50 transition-colors"
+              >
+                <h2 className="text-xl font-semibold text-white">
+                  {section.title}
+                </h2>
+                {expandedSections.has(index) ? (
+                  <ChevronUp className="w-5 h-5 text-neutral-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-neutral-400" />
+                )}
+              </button>
+
+              {/* Section Content */}
+              {expandedSections.has(index) && (
+                <div className="p-6 report-content">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
+                  >
+                    {section.content}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Report Footer */}
+      <div className="p-4 border-t border-neutral-700/50 flex items-center justify-between text-sm text-neutral-400">
+        <span>Last updated: June 15, 2024</span>
+        <span>Generated by G2 Enterprise Reviews Analysis</span>
+      </div>
+    </div>
+  );
+}
